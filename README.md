@@ -74,7 +74,7 @@ Already designing in [Pencil](https://pencil.di.fm)? This skill reads your `.pen
 **Run this one command from your project root** — it clones the repo, copies the skills into the right place, and cleans up after itself:
 
 ```bash
-git clone https://github.com/PatNoO/design-extractor.git _de_tmp && \
+git clone https://github.com/PatrikNoordh/design-extractor.git _de_tmp && \
 mkdir -p .claude/skills && \
 cp -r _de_tmp/.claude/skills/design-extractor .claude/skills/ && \
 cp -r _de_tmp/.claude/skills/pen-to-figma .claude/skills/ && \
