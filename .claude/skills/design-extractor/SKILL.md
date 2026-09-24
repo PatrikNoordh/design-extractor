@@ -206,17 +206,17 @@ async function createComponents() { ... }
 const pages = [ ... ];
 async function buildFrames() { ... }
 
-// Top-level await — NO async IIFE (crashes Figma console before fonts load)
-try {
-  console.log("⏳ Starting design import...");
-  await loadFonts();
-  await createTokenStyles();
-  await createComponents();
-  await buildFrames();
-  console.log("🎉 SUCCESS: Design imported!");
-} catch (err) {
-  console.error("❌ ERROR:", err);
+// One failing phase must not stop the others
+async function runPhase(label, fn) {
+  try { await fn(); } catch (err) { console.error(`❌ Phase "${label}" failed:`, err); }
 }
+
+// Top-level await — NO async IIFE (crashes Figma console before fonts load)
+await runPhase('Load Fonts', async () => { console.log('⏳ [1/4] Loading fonts...'); await loadFonts(); });
+await runPhase('Token Styles', async () => { console.log('⏳ [2/4] Creating token styles...'); await createTokenStyles(); });
+await runPhase('Components', async () => { console.log('⏳ [3/4] Building components...'); await createComponents(); });
+await runPhase('Frames', async () => { console.log('⏳ [4/4] Building frames...'); await buildFrames(); });
+console.log("🎉 Import complete. Check each phase above for any partial failures.");
 ```
 
 See full templates in:
@@ -258,10 +258,13 @@ Use the checklist below as a fix guide when the validator reports a failure:
 - [ ] **Rule 8 – setCurrentPageAsync**: Search for `figma.currentPage =` (assignment, not `.name =`). Must return zero matches.
 - [ ] **Rule 9 – No figma.notify / figma.closePlugin**: Search for `figma.notify(` and `figma.closePlugin(`. Must both return zero matches.
 - [ ] **Rule 10 – String quoting**: Any string value sourced from extracted repo data (page titles, component names, button text) uses single-quote outer delimiter.
+- [ ] **Rule 11 – No children on instances**: No `appendChild` on a node from `createInstance()` unless `detachInstance()` was called first. (Not checked by validate.sh.)
 
 ### Structure checks
 
-- [ ] `runPhase` helper is present and all four phases use it
+- [ ] Script parses — validate.sh runs `node --check` on it
+- [ ] Components use `figma.createComponent()`, not `figma.createFrame()`
+- [ ] `runPhase` helper is defined and all four phases use it
 - [ ] Each component loop and each frame loop has its own per-item try-catch
 - [ ] Progress `console.log` messages present at start of each phase (`[1/4]`, `[2/4]`, `[3/4]`, `[4/4]`)
 
@@ -401,7 +404,7 @@ style.lineHeight = { unit: "PERCENT", value: lineHeightPercent };
 
 When generating JavaScript meant to run directly in the Figma Developer Console, follow these rules to prevent runtime crashes and deprecation warnings.
 
-### Rule 6: NEVER use async IIFEs — use top-level await
+### Rule 7: NEVER use async IIFEs — use top-level await
 
 The Figma console supports top-level `await` natively. Wrapping code in `(async () => { ... })()` causes the plugin environment to close before async operations finish, crashing the script.
 
@@ -422,7 +425,7 @@ try {
 }
 ```
 
-### Rule 7: NEVER use `figma.currentPage =` — use `setCurrentPageAsync()`
+### Rule 8: NEVER use `figma.currentPage =` — use `setCurrentPageAsync()`
 
 The synchronous setter is deprecated and generates console warnings. Always use the async version:
 
@@ -434,7 +437,7 @@ figma.currentPage = page;
 await figma.setCurrentPageAsync(page);
 ```
 
-### Rule 8: Use `console.log` / `console.error` — NOT `figma.notify()` or `figma.closePlugin()`
+### Rule 9: Use `console.log` / `console.error` — NOT `figma.notify()` or `figma.closePlugin()`
 
 `figma.notify()` relies on async timers that can crash when the console environment shuts down. `figma.closePlugin()` terminates the environment mid-run when called from the console.
 
@@ -449,7 +452,7 @@ figma.closePlugin();
 console.log("🎉 SUCCESS: Design imported!");
 ```
 
-### Rule 9: Use single-quoted outer delimiters when string content may contain double quotes
+### Rule 10: Use single-quoted outer delimiters when string content may contain double quotes
 
 If generated string content (labels, titles, names from the repo) could contain double-quote characters, use single quotes as the outer delimiter. A double quote inside a double-quoted JS string will break the parser with "missing ) after argument list".
 
@@ -462,6 +465,20 @@ t.characters = 'Which actor plays the main character in "The Dark Knight"?';
 ```
 
 Apply this whenever the string value comes from extracted repo data — component names, page titles, label text, anything that wasn't written by hand.
+
+### Rule 11: NEVER append children to a component instance
+
+Figma rejects `appendChild` on an `InstanceNode` (or anything inside one). To put content inside a component used in a frame, detach the instance first — or build a plain frame instead. `validate.sh` cannot detect this, so check it by hand.
+
+```javascript
+// WRONG ❌ — throws: cannot add children to an instance
+const card = cardComponent.createInstance();
+card.appendChild(title);
+
+// CORRECT ✅ — detach first, then it is a normal frame
+const card = cardComponent.createInstance().detachInstance();
+card.appendChild(title);
+```
 
 ---
 
@@ -480,19 +497,17 @@ async function loadFonts() { ... }
 async function createTokenStyles() { ... }
 async function createComponents() { ... }
 async function buildFrames() { ... }
+async function runPhase(label, fn) { ... }
 
 // Top-level await — no IIFE wrapper
-try {
-  console.log("⏳ Starting design import...");
-  await loadFonts();
-  await createTokenStyles();
-  await createComponents();
-  await buildFrames();
-  console.log("🎉 SUCCESS: Design imported!");
-} catch (err) {
-  console.error("❌ ERROR:", err);
-}
+await runPhase('Load Fonts', async () => { ... });   // logs [1/4]
+await runPhase('Token Styles', async () => { ... }); // logs [2/4]
+await runPhase('Components', async () => { ... });   // logs [3/4]
+await runPhase('Frames', async () => { ... });       // logs [4/4]
+console.log("🎉 Import complete. Check each phase above for any partial failures.");
 ```
+
+The full, working version of this structure is in `references/frame-generator.md`.
 
 ---
 
