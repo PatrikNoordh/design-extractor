@@ -56,15 +56,27 @@ function makeNode(type) {
     resize(w, h) {
       if (!(w >= 0.01 && h >= 0.01)) throw new Error(`resize(${w}, ${h}) on "${this.name}": size must be >= 0.01`);
       this.width = w; this.height = h;
-      if (this.layoutMode !== "NONE") { this.primaryAxisSizingMode = "FIXED"; this.counterAxisSizingMode = "FIXED"; }
+      if (this.layoutMode !== "NONE") {
+        this.primaryAxisSizingMode = "FIXED"; this.counterAxisSizingMode = "FIXED";
+        state.layoutSizingHorizontal = "FIXED"; state.layoutSizingVertical = "FIXED";
+      }
       if (this.type === "TEXT") this.textAutoResize = "NONE";
     },
     findOne(fn) { return walk(this, fn, [])[0] || null; },
     findAll(fn = () => true) { return walk(this, fn, []); },
     clone() {
       const c = makeNode(this.type);
-      Object.assign(c, { name: this.name, width: this.width, height: this.height, fills: this.fills, layoutMode: this.layoutMode });
-      for (const ch of this.children) c.appendChild(ch.clone());
+      for (const k of ["name", "width", "height", "fills", "strokes", "effects", "layoutMode", "primaryAxisSizingMode",
+                       "counterAxisSizingMode", "textAutoResize", "fontName", "fontSize", "characters",
+                       "layoutSizingHorizontal", "layoutSizingVertical"]) {
+        try { c[k] = this[k]; } catch { /* sizing checks need a parent — copied below */ }
+      }
+      for (const ch of this.children) {
+        const cc = ch.clone();
+        c.appendChild(cc);
+        cc.layoutSizingHorizontal = ch.layoutSizingHorizontal;
+        cc.layoutSizingVertical = ch.layoutSizingVertical;
+      }
       return c;
     },
     createInstance() {
