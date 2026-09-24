@@ -274,7 +274,6 @@ design-extractor/
 ├── setup-extractor.md        # one-time setup workflow for calibrating to your project
 ├── references/               # detailed guides for patterns, templates, generation logic
 ├── scripts/
-│   ├── extract.py            # standalone Python token extractor (no Claude needed)
 │   └── validate.sh           # validates a generated figma-import.js before you paste
 └── tests/
     ├── fixture/              # minimal HTML/CSS project for end-to-end testing
