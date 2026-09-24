@@ -35,15 +35,15 @@ Expected: all checks pass, exit 0.
 ⏳ [2/4] Creating token styles...
 ✅ [2/4] Token styles created
 ⏳ [3/4] Building components...
-  Building 6 component(s)...
-  Built 6/6 components
+  Building 8 component(s)...
+  Built 8/8 components
 ✅ [3/4] Components built
 ⏳ [4/4] Building frames...
   Building 2 page(s) × 2 sizes (mobile + desktop)
-  ✓ Frame: Home – Mobile
-  ✓ Frame: Home – Desktop
-  ✓ Frame: Dashboard – Mobile
-  ✓ Frame: Dashboard – Desktop
+  ✓ Frame: Home – Mobile (390)
+  ✓ Frame: Home – Desktop (1440)
+  ✓ Frame: Dashboard – Mobile (390)
+  ✓ Frame: Dashboard – Desktop (1440)
   Built 2/2 pages
 ✅ [4/4] Frames built
 
@@ -52,7 +52,7 @@ Expected: all checks pass, exit 0.
 
 **Step 5 — Verify in Figma:**
 - [ ] Exactly 2 pages: "🧩 Components" and "📐 Frames"
-- [ ] Components page has Button (Primary, Secondary, Ghost), Card, Input, Badge
+- [ ] Components page has 8 components: Button/Primary, Button/Secondary, Button/Ghost, Card, Input, Badge/Primary, Badge/Success, Badge/Error
 - [ ] Frames page has 4 frames: Home Mobile (390px), Home Desktop (1440px), Dashboard Mobile (390px), Dashboard Desktop (1440px)
 - [ ] Colors reflect the fixture palette (blue primary #2563EB, white background, etc.)
 - [ ] No font errors in console (system-ui must have been mapped to Inter)
@@ -89,10 +89,15 @@ echo 'fontName = { family: "SF Pro", style: "Regular" };' > /tmp/bad.js
 bash .claude/skills/design-extractor/scripts/validate.sh /tmp/bad.js
 # Expected: Rule 5 FAIL, exit 1
 
-# Clean file — all pass
+# Syntax error
+echo 'function broken( {' > /tmp/bad.js
+bash .claude/skills/design-extractor/scripts/validate.sh /tmp/bad.js
+# Expected: Syntax FAIL, exit 1
+
+# Minimal file with no pages
 echo 'console.log("ok");' > /tmp/clean.js
 bash .claude/skills/design-extractor/scripts/validate.sh /tmp/clean.js
-# Expected: most checks pass (page count will warn), exit depends on page count check
+# Expected: Rule 1 FAIL (no createPage calls), exit 1
 ```
 
 ---
@@ -114,7 +119,7 @@ Then validate: `bash .claude/skills/design-extractor/scripts/validate.sh figma-i
 
 | Fixture | Token source | Components | Screens | Key thing to verify |
 |---------|-------------|------------|---------|---------------------|
-| `fixture/` (HTML/CSS) | `styles.css` `:root` vars | Button (3), Card, Input, Badge | Home, Dashboard | CSS vars extracted, system-ui → Inter |
+| `fixture/` (HTML/CSS) | `styles.css` `:root` vars | Button (3), Card, Input, Badge (3) | Home, Dashboard | CSS vars extracted, system-ui → Inter |
 | `nextjs-tailwind/` | `tailwind.config.js` theme | Button (3), Card, Badge | Home, Dashboard | Tailwind color keys used, not hardcoded hex |
 | `react-css-modules/` | `src/tokens.css` `:root` vars | Button (3), Card | Home, Dashboard | `.module.css` components scanned correctly |
 | `vue/` | `src/assets/variables.css` | AppButton (3), AppCard | HomeView, DashboardView | SFC `<style scoped>` tokens extracted |
@@ -125,7 +130,7 @@ Then validate: `bash .claude/skills/design-extractor/scripts/validate.sh figma-i
 
 Every fixture should produce:
 - **2 pages** in Figma: "🧩 Components" and "📐 Frames"
-- **2–4 components** on the Components page (Button variants count as one component with variants)
+- **One component per variant** on the Components page — e.g. `fixture/` = 8 (Button ×3, Card, Input, Badge ×3). Count each fixture's variants in the table above.
 - **4 frames** on the Frames page: Home Mobile (390px), Home Desktop (1440px), Dashboard Mobile (390px), Dashboard Desktop (1440px)
 - **Color styles** matching the token values in each fixture's token file
 
@@ -143,6 +148,8 @@ The `kotlin-android/` fixture is intentionally unsupported — running the skill
 | `Cannot read property ... of undefined` | Missing per-item try-catch | Check frame-generator.md loops |
 | Nothing created, no output | Async IIFE present | validate.sh Rule 7 |
 | Script stops after phase 1–3 | runPhase helper missing | validate.sh Structure check |
+| `SyntaxError` on paste | Broken generated code | validate.sh Syntax check (`node --check`) |
+| `Cannot add children to an instance` | appendChild on an instance | Rule 11 — call `detachInstance()` first |
 | `TypeError: unit is invalid` | lineHeight MULTIPLIER | validate.sh Rule 6 |
 | Warning: setCurrentPage deprecated | Using sync setter | validate.sh Rule 8 |
 | All 4 phases logged but Figma shows nothing | Too many pages created | validate.sh Rule 1 — check page count |

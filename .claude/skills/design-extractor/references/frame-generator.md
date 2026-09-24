@@ -81,17 +81,24 @@ max-w-7xl mx-auto         →    Fixed width 1280px, centered
 // ============================================
 
 // ---- TOKENS ----
+// Every color used anywhere below must exist here — including one-off hardcoded
+// values found in components (e.g. badge backgrounds). Never put hex literals in
+// components[] or pages[]; reference tokens.colors instead (Rules 2 and 3).
 const tokens = {
   colors: {
     "primary":        "#3B82F6",
     "primary-hover":  "#2563EB",
+    "primary-subtle": "#EFF6FF",
     "background":     "#FFFFFF",
     "surface":        "#F9FAFB",
     "text-primary":   "#111827",
     "text-secondary": "#6B7280",
+    "text-inverse":   "#FFFFFF",
     "border":         "#E5E7EB",
     "error":          "#EF4444",
+    "error-subtle":   "#FEF2F2",
     "success":        "#10B981",
+    "success-subtle": "#F0FDF4",
     "warning":        "#F59E0B"
   },
   typography: {
@@ -101,49 +108,62 @@ const tokens = {
     "body-base":   { family: "Inter", size: 16, weight: 400, lineHeight: 1.5 },
     "body-sm":     { family: "Inter", size: 14, weight: 400, lineHeight: 1.5 },
     "label":       { family: "Inter", size: 14, weight: 500, lineHeight: 1.4 },
-    "button":      { family: "Inter", size: 14, weight: 600, lineHeight: 1 }
+    "button":      { family: "Inter", size: 14, weight: 600, lineHeight: 1 },
+    "caption":     { family: "Inter", size: 12, weight: 500, lineHeight: 1.4 }
   }
 };
+const C = tokens.colors;
 
 // ---- COMPONENTS ----
-// Claude Code fills this based on actual components found in repo
+// Claude Code fills this based on actual components found in repo.
+// Each variant is its own component (Button ×3 + Badge ×3 = 6 entries, not 2).
 const components = [
-  { name: "Button/Primary",   width: 120, height: 40, bg: "#3B82F6", text: "Button", textColor: "#FFFFFF", radius: 8 },
-  { name: "Button/Secondary", width: 120, height: 40, bg: "#FFFFFF", text: "Button", textColor: "#3B82F6", radius: 8, stroke: "#3B82F6" },
-  { name: "Button/Ghost",     width: 120, height: 40, bg: "transparent", text: "Button", textColor: "#6B7280", radius: 8 },
-  { name: "Card/Default",     width: 320, height: 160, bg: "#FFFFFF", radius: 12, stroke: "#E5E7EB" },
-  { name: "Input/Default",    width: 280, height: 40, bg: "#FFFFFF", radius: 8, stroke: "#E5E7EB" },
-  { name: "Badge/Primary",    width: 80,  height: 24, bg: "#EFF6FF", text: "Badge", textColor: "#3B82F6", radius: 99 }
+  { name: "Button/Primary",   width: 120, height: 40, bg: C["primary"],        text: "Button", textColor: C["text-inverse"],   radius: 8, type: "button" },
+  { name: "Button/Secondary", width: 120, height: 40, bg: "transparent",       text: "Button", textColor: C["primary"],        radius: 8, stroke: C["primary"], type: "button" },
+  { name: "Button/Ghost",     width: 120, height: 40, bg: "transparent",       text: "Button", textColor: C["text-secondary"], radius: 8, type: "button" },
+  { name: "Card/Default",     width: 320, height: 160, bg: C["surface"],       radius: 12, stroke: C["border"] },
+  { name: "Input/Default",    width: 280, height: 40, bg: C["background"],     text: "Placeholder", textColor: C["text-secondary"], radius: 8, stroke: C["border"], type: "body-base" },
+  { name: "Badge/Primary",    width: 80,  height: 24, bg: C["primary-subtle"], text: "Badge", textColor: C["primary"], radius: 9999, type: "caption" },
+  { name: "Badge/Success",    width: 80,  height: 24, bg: C["success-subtle"], text: "Badge", textColor: C["success"], radius: 9999, type: "caption" },
+  { name: "Badge/Error",      width: 80,  height: 24, bg: C["error-subtle"],   text: "Badge", textColor: C["error"],   radius: 9999, type: "caption" }
 ];
 
 // ---- FRAMES (pages) ----
-// Claude Code fills this based on actual routes found in repo
+// Claude Code fills this based on actual routes found in repo.
+// Each entry becomes TWO frames: Mobile (390 wide) and Desktop (1440 wide).
+// Do not put a width on the page entry — frame widths are fixed by FRAME_SIZES.
 const pages = [
   {
     name: "🏠 Home",
-    width: 1440,
+    bg: C["background"],
+    layout: "VERTICAL",
     sections: [
-      { name: "Navbar",         height: 64,  bg: "#FFFFFF", border: "#E5E7EB", layout: "HORIZONTAL", paddingX: 80, gap: 32,
+      { name: "Navbar",   height: 64,  bg: C["background"],   border: C["border"], layout: "HORIZONTAL", paddingX: 32, gap: 32,
         items: ["Logo", "Nav Links", "Button/Primary"] },
-      { name: "Hero",           height: 560, bg: "#F9FAFB", layout: "VERTICAL", align: "CENTER", paddingX: 80, paddingY: 80, gap: 24,
+      { name: "Hero",     height: 560, bg: C["surface"],      layout: "VERTICAL", align: "CENTER", paddingX: 32, paddingY: 64, gap: 24,
         items: ["H1 Heading", "Subtext", "Button Row"] },
-      { name: "Features",       height: 400, bg: "#FFFFFF", layout: "HORIZONTAL", paddingX: 80, paddingY: 64, gap: 24,
+      { name: "Features", height: 400, bg: C["background"],   layout: "HORIZONTAL", paddingX: 32, paddingY: 64, gap: 24,
         items: ["Feature Card", "Feature Card", "Feature Card"] },
-      { name: "Footer",         height: 160, bg: "#111827", layout: "HORIZONTAL", paddingX: 80, gap: 48,
+      { name: "Footer",   height: 160, bg: C["text-primary"], layout: "HORIZONTAL", paddingX: 32, gap: 48,
         items: ["Logo", "Links", "Copyright"] }
     ]
   },
   {
     name: "📊 Dashboard",
-    width: 1440,
+    bg: C["surface"],
     layout: "HORIZONTAL",
     sections: [
-      { name: "Sidebar",        width: 240,  bg: "#1F2937", layout: "VERTICAL", paddingX: 16, paddingY: 24, gap: 8,
+      { name: "Sidebar", width: 240, bg: C["text-primary"], layout: "VERTICAL", paddingX: 16, paddingY: 24, gap: 8,
         items: ["Logo", "Nav Items", "User Profile"] },
-      { name: "Main",           bg: "#F3F4F6", layout: "VERTICAL", paddingX: 32, paddingY: 32, gap: 24,
+      { name: "Main",    bg: C["surface"], layout: "VERTICAL", paddingX: 32, paddingY: 32, gap: 24,
         items: ["Page Header", "Stats Row", "Data Table"] }
     ]
   }
+];
+
+const FRAME_SIZES = [
+  { label: "Mobile",  width: 390,  height: 844 },
+  { label: "Desktop", width: 1440, height: 960 }
 ];
 
 // ---- HELPERS ----
@@ -198,6 +218,15 @@ async function txt(chars, size, weight, hexColor, alpha = 1) {
   return n;
 }
 
+// Runs one phase; a failure is logged and the next phase still runs
+async function runPhase(label, fn) {
+  try {
+    await fn();
+  } catch (err) {
+    console.error(`❌ Phase "${label}" failed:`, err);
+  }
+}
+
 async function loadFonts() {
   // Derive every font the script will actually use from tokens.typography
   const toLoad = new Set();
@@ -232,7 +261,6 @@ async function createTokenStyles() {
     const lhValue = props.lineHeight < 10 ? props.lineHeight * 100 : props.lineHeight;
     style.lineHeight = { unit: "PERCENT", value: lhValue };
   }
-  console.log("✅ Token styles created");
 }
 
 // ---- CREATE COMPONENTS ----
@@ -246,28 +274,30 @@ async function createComponents() {
   console.log(`  Building ${components.length} component(s)...`);
   for (const comp of components) {
     try {
-      const frame = figma.createFrame();
-      frame.name = comp.name;
-      frame.resize(comp.width, comp.height);
-      frame.x = x;
-      frame.y = 40;
-      frame.cornerRadius = comp.radius || 0;
-      frame.fills = solidColor(comp.bg);
+      const node = figma.createComponent();
+      node.name = comp.name;
+      node.resize(comp.width, comp.height);
+      node.x = x;
+      node.y = 40;
+      node.cornerRadius = comp.radius || 0;
+      node.fills = solidColor(comp.bg);
       if (comp.stroke) {
-        frame.strokes = solidColor(comp.stroke);
-        frame.strokeWeight = 1;
-        frame.strokeAlign = "INSIDE";
+        node.strokes = solidColor(comp.stroke);
+        node.strokeWeight = 1;
+        node.strokeAlign = "INSIDE";
       }
       if (comp.text) {
+        const typo = tokens.typography[comp.type] || tokens.typography["body-sm"];
         const t = figma.createText();
+        t.fontName = { family: typo.family, style: weightToStyle(typo.weight) };
+        t.fontSize = typo.size;
         t.characters = comp.text;
-        t.fontSize = 13;
-        t.fills = solidColor(comp.textColor || "#111827");
-        frame.appendChild(t);
+        t.fills = solidColor(comp.textColor || C["text-primary"]);
+        node.appendChild(t);
         t.x = (comp.width - t.width) / 2;
         t.y = (comp.height - t.height) / 2;
       }
-      page.appendChild(frame);
+      page.appendChild(node);
       x += comp.width + 24;
       built++;
     } catch (err) {
@@ -278,6 +308,40 @@ async function createComponents() {
 }
 
 // ---- BUILD FRAMES ----
+// One section inside a page frame. The page frame uses auto layout, so sections
+// stack instead of overlapping; layoutSizing* must be set AFTER appendChild.
+function buildSection(section, parent) {
+  const s = figma.createFrame();
+  s.name = section.name;
+  s.fills = solidColor(section.bg || C["surface"]);
+  if (section.layout) {
+    s.layoutMode = section.layout;
+    s.itemSpacing = section.gap || 16;
+    s.paddingLeft = s.paddingRight = section.paddingX || 16;
+    s.paddingTop = s.paddingBottom = section.paddingY || 16;
+    if (section.align === "CENTER") {
+      s.primaryAxisAlignItems = "CENTER";
+      s.counterAxisAlignItems = "CENTER";
+    }
+  }
+  if (section.border) {
+    s.strokes = solidColor(section.border);
+    s.strokeWeight = 1; s.strokeAlign = "INSIDE";
+  }
+  parent.appendChild(s);
+
+  const parentIsRow = parent.layoutMode === "HORIZONTAL";
+  if (section.width) { s.resize(section.width, s.height); s.layoutSizingHorizontal = "FIXED"; }
+  else s.layoutSizingHorizontal = "FILL";
+  if (section.height) { s.resize(s.width, section.height); s.layoutSizingVertical = "FIXED"; }
+  else s.layoutSizingVertical = parentIsRow ? "FILL" : "HUG";
+
+  // Real content goes here (Rule 2): text nodes using tokens.typography, and
+  // component instances. To put children INSIDE an instance, detach it first:
+  //   const inst = componentNode.createInstance().detachInstance();
+  return s;
+}
+
 // ALL frames on ONE page — never create a page per route (free plan = 3 pages max)
 async function buildFrames() {
   const figmaPage = figma.createPage();
@@ -286,65 +350,43 @@ async function buildFrames() {
 
   const GAP = 80;
   let xOff = 0;
+  let built = 0;
+  console.log(`  Building ${pages.length} page(s) × ${FRAME_SIZES.length} sizes (mobile + desktop)`);
 
   for (const pageData of pages) {
-    const W = pageData.width || 390;
-    const H = pageData.height || 844;
+    let pageOk = true;
+    // Mobile first, desktop 80px to the right (Rule 4)
+    for (const size of FRAME_SIZES) {
+      try {
+        const frame = figma.createFrame();
+        frame.name = `${pageData.name} – ${size.label} (${size.width})`;
+        frame.resize(size.width, size.height);
+        frame.x = xOff; frame.y = 0;
+        frame.fills = solidColor(pageData.bg || C["background"]);
+        frame.clipsContent = true;
+        frame.layoutMode = pageData.layout || "VERTICAL";
+        frame.primaryAxisSizingMode = "FIXED";
+        frame.counterAxisSizingMode = "FIXED";
+        figmaPage.appendChild(frame);
 
-    // Mobile / primary frame
-    const frame = figma.createFrame();
-    frame.name = `${pageData.name} – Mobile (390)`;
-    frame.resize(W, H);
-    frame.x = xOff; frame.y = 0;
-    frame.fills = solidColor(pageData.bg || "#FFFFFF");
-    frame.clipsContent = true;
-
-    for (const section of (pageData.sections || [])) {
-      const s = figma.createFrame();
-      s.name = section.name;
-      s.resize(section.width || W, section.height || 80);
-      s.x = section.x || 0; s.y = section.y || 0;
-      s.fills = solidColor(section.bg || "#F9FAFB");
-      if (section.layout) {
-        s.layoutMode = section.layout;
-        s.itemSpacing = section.gap || 16;
-        s.paddingLeft = s.paddingRight = section.paddingX || 16;
-        s.paddingTop = s.paddingBottom = section.paddingY || 16;
-        s.primaryAxisSizingMode = section.height ? "FIXED" : "AUTO";
-        s.counterAxisSizingMode = "FIXED";
-        if (section.align === "CENTER") {
-          s.primaryAxisAlignItems = "CENTER";
-          s.counterAxisAlignItems = "CENTER";
+        for (const section of (pageData.sections || [])) {
+          try {
+            buildSection(section, frame);
+          } catch (err) {
+            console.warn(`    ⚠️ Skipped section "${section.name}" in ${frame.name}: ${err.message || err}`);
+          }
         }
+        console.log(`  ✓ Frame: ${frame.name}`);
+      } catch (err) {
+        pageOk = false;
+        console.warn(`  ⚠️ Skipped frame "${pageData.name} – ${size.label}": ${err.message || err}`);
       }
-      if (section.border) {
-        s.strokes = solidColor(section.border);
-        s.strokeWeight = 1; s.strokeAlign = "INSIDE";
-      }
-      frame.appendChild(s);
+      xOff += size.width + GAP;
     }
+    if (pageOk) built++;
   }
 
   console.log(`  Built ${built}/${pages.length} pages`);
-}
-
-    figmaPage.appendChild(frame);
-    xOff += W + GAP;
-
-    // Desktop frame (1440px) placed 80px to the right of mobile
-    if (pageData.desktop !== false) {
-      const DW = 1440;
-      const desktop = figma.createFrame();
-      desktop.name = `${pageData.name} – Desktop (1440)`;
-      desktop.resize(DW, H);
-      desktop.x = xOff; desktop.y = 0;
-      desktop.fills = solidColor(pageData.bg || "#FFFFFF");
-      figmaPage.appendChild(desktop);
-      xOff += DW + GAP;
-    }
-  }
-
-  console.log("✅ Frames created");
 }
 
 // ---- RUN EVERYTHING ----
