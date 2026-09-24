@@ -207,14 +207,15 @@ function weightToStyle(w) {
   return { 400:"Regular", 500:"Medium", 600:"Semi Bold", 700:"Bold", 800:"Extra Bold" }[w] || "Regular";
 }
 
-// Create a text node in one call (must be called after loadFonts)
-async function txt(chars, size, weight, hexColor, alpha = 1) {
+// Create a text node from a typography token (must be called after loadFonts)
+function txt(chars, typoKey, hexColor, alpha = 1) {
+  const typo = tokens.typography[typoKey] || tokens.typography["body-sm"];
   const n = figma.createText();
-  n.fontName = { family: "Inter", style: weight };
-  n.fontSize = size;
+  n.fontName = { family: typo.family, style: weightToStyle(typo.weight) };
+  n.fontSize = typo.size;
   n.characters = chars;
   n.fills = solidColor(hexColor, alpha);
-  n.lineHeight = { unit: "PERCENT", value: 140 };
+  n.lineHeight = { unit: "PERCENT", value: typo.lineHeight < 10 ? typo.lineHeight * 100 : typo.lineHeight };
   return n;
 }
 

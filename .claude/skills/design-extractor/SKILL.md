@@ -368,9 +368,9 @@ Figma cannot load OS-level system fonts. Any system font reference found in the 
 | system-ui | `"Inter"` |
 | Android: sans-serif / Roboto | `"Roboto"` |
 
-Add a comment in the generated script noting the mapping so users know why the font differs from their app:
+Add a comment on its own line in the generated script noting the mapping so users know why the font differs from their app. Don't name the system font in it — validate.sh flags system font names in code, and keeping them out of comments too avoids false alarms:
 ```javascript
-// Note: SF Pro (iOS system font) mapped to Inter — Figma cannot load device fonts
+// Note: iOS system font mapped to Inter — Figma cannot load device fonts
 ```
 
 ### Rule 6: lineHeight must use PIXELS, PERCENT or AUTO — never MULTIPLIER
@@ -531,10 +531,10 @@ This section will be replaced with your project's rules.
 
 ### What will be detected and added here
 
-- **Framework** (Next.js, Vue, Svelte, React, SwiftUI, etc.)
-- **Styling approach** (Tailwind, CSS Modules, Styled Components, CSS vars, etc.)
-- **Component folder structure** (where your components live)
-- **Code generation rules** (naming conventions, file format, output structure)
+- **Framework** (Next.js, Vue, Svelte, React, SwiftUI, Kotlin/Android, etc.)
+- **Styling approach** (Tailwind, CSS Modules, Styled Components, CSS vars, XML resources, etc.)
+- **Where to read from** (token files, component folders and variants, screen files)
+- **Value conversions** (rem, clamp(), dp/sp, font mapping) and known gaps
 
 ---
 
@@ -543,11 +543,11 @@ This section will be replaced with your project's rules.
 When extracting from a SwiftUI project:
 
 - **Colors**: Read `Color+Extensions.swift` or `Assets.xcassets` color set JSON files. Dark-mode variants are usually the primary appearance.
-- **Flat token object**: Use a flat `const colors = { key: "#hex" }` rather than a nested `tokens.colors` object — the script helper functions (`sc`, `hGrad`, `vGrad`) reference colors directly.
+- **Token object**: Use the same `tokens.colors` object as every other framework (see `references/frame-generator.md`) — `solidColor`, `hGrad` and `vGrad` all take hex values from it.
 - **Typography**: SwiftUI `.font(.system(size:weight:))` maps to `Inter` in Figma. Extract all unique sizes and weights into a semantic token table.
 - **Spacing constants**: Look for `enum Spacing` or `struct Spacing` with static `let` values.
 - **Corner radius**: Look for `enum CornerRadius` or extension on `CGFloat`.
 - **Views → Frames**: Each `*View.swift` file is one frame. Map `ZStack/VStack/HStack` to Figma frame layout direction.
 - **Custom shapes** (`Shape` protocol): Cannot be reproduced exactly — approximate with nearest available Figma shape and note the limitation in `design-system-summary.md`.
 - **Gradient helpers**: Always generate `hGrad(c1, c2)` and `vGrad(c1, c2)` helpers in the script when the app uses gradients.
-- **`txt()` helper**: Always generate an async `txt(chars, size, weight, hex, alpha)` helper to avoid repeating font/fill setup on every text node.
+- **`txt()` helper**: Use the template's `txt(chars, typoKey, hex)` helper for every text node — it takes the font, size and line height from `tokens.typography[typoKey]`.
