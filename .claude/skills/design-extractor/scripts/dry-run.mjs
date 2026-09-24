@@ -4,6 +4,7 @@
 //
 // The mock enforces the Figma rules that grep can't see:
 //   - appendChild on an INSTANCE (or inside one) or on a TEXT node throws (Rule 11)
+//   - icon glyphs like ☰ or ✕ in text throw (Rule 12)
 //   - setting text/font on a font that was never loaded throws
 //   - layoutSizing "FILL" needs an auto-layout parent; "HUG" needs auto layout or text
 //   - resize() on an auto-layout frame pins both axes to FIXED
@@ -17,6 +18,8 @@ const verbose = process.argv.includes("--verbose");
 if (!file) { console.error("Usage: node dry-run.mjs figma-import.js"); process.exit(2); }
 
 const SYSTEM_FONTS = ["SF Pro", "SF Pro Display", "SF Pro Text", "-apple-system", "BlinkMacSystemFont", "system-ui"];
+// Common icon glyphs that are not in Inter and render as empty boxes (Rule 12)
+const ICON_GLYPHS = /[☰✕✖✗✘✓✔➜➔★☆♥♡⚙⌂☎✉]/;
 const loadedFonts = new Set();
 const fontKey = (f) => `${f.family}|${f.style}`;
 function requireFont(f, what) {
@@ -107,6 +110,8 @@ function makeNode(type) {
       set(v) {
         if (n.type !== "TEXT") { state[prop] = v; return; }
         requireFont(prop === "fontName" ? v : state.fontName, `Setting ${prop} on "${n.name || "text"}"`);
+        if (prop === "characters" && ICON_GLYPHS.test(v))
+          throw new Error(`Text "${v}" contains an icon glyph — draw icons as shapes (Rule 12)`);
         state[prop] = v;
       },
     });

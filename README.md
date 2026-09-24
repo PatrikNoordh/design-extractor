@@ -273,7 +273,8 @@ design-extractor/
 ├── setup-extractor.md        # one-time setup workflow for calibrating to your project
 ├── references/               # detailed guides for patterns, templates, generation logic
 ├── scripts/
-│   └── validate.sh           # validates a generated figma-import.js before you paste
+│   ├── validate.sh           # validates a generated figma-import.js before you paste
+│   └── dry-run.mjs           # runs the script against a mock Figma API (called by validate.sh)
 └── tests/
     ├── fixture/              # minimal HTML/CSS project for end-to-end testing
     └── TESTING.md            # full testing workflow and debugging table

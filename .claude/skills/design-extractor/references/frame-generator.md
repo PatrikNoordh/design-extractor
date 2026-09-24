@@ -69,6 +69,8 @@ w-full                    →    Fill container
 max-w-7xl mx-auto         →    Fixed width 1280px, centered
 ```
 
+Units (`rem`, `clamp()`, `vh`) and media queries are resolved per frame width — see Rule 14 in SKILL.md.
+
 ---
 
 ## Step 3: Build the combined script
