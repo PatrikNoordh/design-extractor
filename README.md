@@ -4,7 +4,7 @@
 
 This repo contains two Claude Code skills that bridge the gap between your code and your design tool — in one paste.
 
-> **Status: Early Beta** — core extraction works, but the skills are still being tested across different frameworks and project structures. Expect rough edges.
+> **Status: Beta** — core extraction works, but the skills are still being tested across different frameworks and project structures. Expect rough edges.
 > **If something crashes or breaks, please [open an issue](../../issues/new) — that's the most helpful thing you can do.**
 
 ---
