@@ -61,7 +61,7 @@ Reads your entire codebase and generates a single JavaScript file. Paste it into
 
 ---
 
-### `pen-to-figma` *(experimental)* — Pencil → Figma
+### `pen-to-figma` *(beta)* — Pencil → Figma
 
 Already designing in [Pencil](https://pencil.di.fm)? This skill reads your `.pen` file and converts it into the same kind of paste-ready Figma script — so your Pencil designs land in Figma with layout, variables, and components intact.
 
@@ -197,7 +197,8 @@ See `tests/TESTING.md` for the full workflow, expected console output, and a deb
 
 > Already designing in Pencil? This skill converts your `.pen` file into a paste-ready Figma script.
 
-**Status: experimental.** This skill is newer and less battle-tested than `design-extractor`. The happy path works well, but edge cases — deeply nested components, complex variable overrides, icon fonts — may need manual cleanup. Feedback welcome via [Issues](../../issues/new).
+**Status: beta.** Used to move a real app design from Pencil into Figma, and the conversion engine is covered by 38 unit tests that run on every `npm test`. Known gaps: icon fonts are only partially supported, and component instances are inlined rather than linked to a Figma library. Found a bug? [Open an issue](../../issues/new).
+
 
 ### What it does
 
@@ -248,12 +249,10 @@ Then paste `figma-plugin.js` into the Figma console, same as above.
 Before running the skill on a real file, verify everything is wired up:
 
 ```bash
-# Step 1 — Run the full test suite (converter unit tests + end-to-end plugin tests)
+# Step 1 — Run the converter test suite
 npm test
-# Expected: 84 tests pass across both layers
+# Expected: 38 converter unit tests pass
 
-# Step 2 — Confirm Pencil MCP is connected
-# Ask Claude Code to call get_editor_state — it should respond without error
 ```
 
 See `pen-to-figma/health-check.md` for the full procedure, including what each test layer covers.
