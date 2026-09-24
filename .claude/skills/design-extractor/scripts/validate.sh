@@ -23,6 +23,21 @@ fi
 echo "Validating: $FILE"
 echo "---"
 
+# Syntax — the script must parse. Copied to .mjs because it uses top-level await.
+# Also catches most Rule 10 breakage (unescaped quotes in extracted strings).
+if command -v node >/dev/null 2>&1; then
+  TMP_DIR=$(mktemp -d)
+  cp "$FILE" "$TMP_DIR/check.mjs"
+  if SYNTAX_OUT=$(node --check "$TMP_DIR/check.mjs" 2>&1); then
+    pass "Syntax: script parses (node --check)"
+  else
+    fail "Syntax: script does not parse — $(echo "$SYNTAX_OUT" | grep -m1 'Error')"
+  fi
+  rm -rf "$TMP_DIR"
+else
+  echo "⚠️  SKIP: Syntax check — node not installed"
+fi
+
 # Rule 6 — lineHeight MULTIPLIER
 if grep -q 'unit.*MULTIPLIER\|MULTIPLIER.*unit' "$FILE"; then
   fail "Rule 6: lineHeight uses MULTIPLIER unit (must be PIXELS, PERCENT, or AUTO)"
@@ -77,7 +92,8 @@ if [ $FONT_ERRORS -eq 0 ]; then
 fi
 
 # Rule 1 — page count (should be exactly 2 createPage calls)
-PAGE_COUNT=$(grep -c 'figma\.createPage()' "$FILE" 2>/dev/null || echo 0)
+# grep -c already prints 0 on no match — do not add "|| echo 0" (it yields "0\n0")
+PAGE_COUNT=$(grep -c 'figma\.createPage()' "$FILE")
 if [ "$PAGE_COUNT" -gt 2 ]; then
   fail "Rule 1: $PAGE_COUNT figma.createPage() calls found (max 2 allowed)"
 elif [ "$PAGE_COUNT" -eq 0 ]; then
@@ -86,11 +102,26 @@ else
   pass "Rule 1: page count is $PAGE_COUNT (≤ 2)"
 fi
 
-# Structure — runPhase helper
-if ! grep -q 'runPhase' "$FILE"; then
-  fail "Structure: runPhase helper not found — script lacks resilient error handling"
+# Rule 2/3 — hex literals assigned directly instead of via tokens.colors
+# (heuristic: catches solidColor("#...") and bg/stroke/textColor/border: "#..." in data)
+if grep -qE 'solidColor\(\s*["'"'"']#|\b(bg|textColor|stroke|border)\s*:\s*["'"'"']#' "$FILE"; then
+  fail "Rule 2/3: hardcoded hex color outside tokens — reference tokens.colors instead"
 else
-  pass "Structure: runPhase helper present"
+  pass "Rule 2/3: colors come from tokens"
+fi
+
+# Rule 4 — both a 390px mobile and a 1440px desktop frame size must be present
+if grep -qE '\b390\b' "$FILE" && grep -qE '\b1440\b' "$FILE"; then
+  pass "Rule 4: mobile (390) and desktop (1440) frame sizes present"
+else
+  fail "Rule 4: missing 390 (mobile) and/or 1440 (desktop) frame size"
+fi
+
+# Structure — runPhase helper must be defined, not just called
+if ! grep -qE '(async\s+)?function\s+runPhase\b' "$FILE"; then
+  fail "Structure: runPhase helper not defined — script lacks resilient error handling"
+else
+  pass "Structure: runPhase helper defined"
 fi
 
 # Structure — progress logging
