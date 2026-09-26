@@ -158,6 +158,18 @@ f.layoutPositioning = "ABSOLUTE";
 assert(absolute.exit === 1 && absolute.out.includes("ABSOLUTE"),
   "ABSOLUTE positioning outside auto layout fails", absolute.out.trim());
 
+const line = dryRun("line-zero-height", `
+const l = figma.createLine();
+l.resize(64, 0);
+`);
+assert(line.exit === 0, "a line can be resized to height 0", line.out.trim());
+
+const zero = dryRun("frame-zero-height", `
+const f = figma.createFrame();
+f.resize(64, 0);
+`);
+assert(zero.exit === 1, "a frame can't be resized to height 0", zero.out.trim());
+
 const warned = dryRun("warning", `console.warn("  ⚠️ Something was approximated");`);
 assert(warned.exit === 1, "any console.warn counts as a problem", warned.out.trim());
 

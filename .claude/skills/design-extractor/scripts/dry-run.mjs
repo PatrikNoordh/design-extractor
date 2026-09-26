@@ -82,7 +82,9 @@ function makeNode(type) {
     insertChild(i, child) { this.appendChild(child); },
     remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; },
     resize(w, h) {
-      if (!(w >= 0.01 && h >= 0.01)) throw new Error(`resize(${w}, ${h}) on "${this.name}": size must be >= 0.01`);
+      // Lines have no height in Figma: resize(length, 0) is valid for a LINE
+      const minH = this.type === "LINE" ? 0 : 0.01;
+      if (!(w >= 0.01 && h >= minH)) throw new Error(`resize(${w}, ${h}) on "${this.name}": size must be >= 0.01`);
       this.width = w; this.height = h;
       if (this.layoutMode !== "NONE") {
         this.primaryAxisSizingMode = "FIXED"; this.counterAxisSizingMode = "FIXED";
