@@ -31,9 +31,12 @@ Use that as the base. Claude Code will fill in the actual values from the repo.
 
 ## Tips for Claude Code
 
-1. Replace all placeholder values with actual extracted values from the repo
-2. Add all components found in the component scan
-3. Add all pages found in the route scan
-4. Keep helper functions intact
-5. Always generate a single ready-to-run script, never a template
-6. Add a comment header with project name and generation date
+1. Replace all sample values (`tokens`, `components`, `pages`, `FRAME_SIZES`) with values extracted from the repo
+2. Add one component per variant found in the component scan
+3. Add every screen found in the screen scan (every route / NavHost destination / tab)
+4. Keep helper functions intact — they are tested; do not write a second `loadFonts` or `txt`
+5. Set `DEFAULT_TEXT_STYLE`, `DEFAULT_TEXT_COLOR` and `DEFAULT_BACKGROUND` to real token keys
+6. Copy the widget builders you need from `references/platform-widgets.md` into `WIDGET_BUILDERS`
+7. Always generate a single ready-to-run script, never a template
+8. Add a comment header with project name and generation date
+9. Run `scripts/validate.sh` — it also executes the script against a Figma API mock
