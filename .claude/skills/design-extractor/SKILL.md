@@ -181,22 +181,7 @@ Structure for `figma-import.js`:
 const tokens = { colors: {...}, typography: {...}, spacing: {...} };
 function solidColor(hex) { ... }
 
-async function loadFonts() {
-  // Collect every unique family+style from tokens.typography, then load them all
-  const toLoad = new Set();
-  for (const t of Object.values(tokens.typography)) {
-    toLoad.add(JSON.stringify({ family: t.family, style: weightToStyle(t.weight) }));
-  }
-  // Always include fallback weights so helper text nodes never fail
-  for (const family of [...new Set(Object.values(tokens.typography).map(t => t.family))]) {
-    for (const style of ["Regular", "Medium", "Semi Bold", "Bold"]) {
-      toLoad.add(JSON.stringify({ family, style }));
-    }
-  }
-  for (const entry of toLoad) {
-    try { await figma.loadFontAsync(JSON.parse(entry)); } catch {}
-  }
-}
+async function loadFonts() { ... }   // canonical version: references/frame-generator.md
 
 async function createTokenStyles() { ... }
 
@@ -297,7 +282,7 @@ Claude Code adapts the extraction per framework automatically.
 
 ## Key principles
 
-- **Never destructive** — read only, never modify the repo
+- **Never destructive** — never modify the project's source code; the only file the skill may edit is its own calibration section in SKILL.md (via `setup-extractor.md`)
 - **Assume gracefully** — if unsure of a semantic name, use the technical value
 - **Flag gaps** — clearly state what could not be extracted automatically
 - **Keep it portable** — output must work without knowing the specific repo
@@ -458,19 +443,22 @@ figma.closePlugin();
 console.log("🎉 SUCCESS: Design imported!");
 ```
 
-### Rule 10: Use single-quoted outer delimiters when string content may contain double quotes
+### Rule 10: Quote and escape every string that comes from the repo
 
-If generated string content (labels, titles, names from the repo) could contain double-quote characters, use single quotes as the outer delimiter. A double quote inside a double-quoted JS string will break the parser with "missing ) after argument list".
+Strings from the repo (labels, titles, component names, `strings.xml` values) can contain both quote types — English UI text is full of apostrophes. Use single quotes as the outer delimiter **and escape `\` and `'` inside the value**, or emit the value with `JSON.stringify(value)`. Unescaped, either quote breaks the parser ("missing ) after argument list").
 
 ```javascript
-// WRONG ❌ — breaks if the string contains "
-t.characters = "Which actor plays the main character in "The Dark Knight"?";
+// WRONG ❌ — the apostrophe ends the string
+t.characters = 'How did last night's sleep feel?';
 
-// CORRECT ✅ — safe regardless of content
-t.characters = 'Which actor plays the main character in "The Dark Knight"?';
+// CORRECT ✅ — escaped
+t.characters = 'How did last night\'s sleep feel?';
+
+// CORRECT ✅ — JSON.stringify output is always a valid JS string literal
+t.characters = "Which actor plays \"The Dark Knight\"?";
 ```
 
-Apply this whenever the string value comes from extracted repo data — component names, page titles, label text, anything that wasn't written by hand.
+Resolve source escapes **before** quoting: Android `strings.xml` stores `\'`, `\"` and `\n`, and uses placeholders like `%1$d` / `%1$s` — unescape them and fill placeholders with sample values (Rule 13) first. `validate.sh` parses the script, so a quoting mistake fails the syntax check.
 
 ### Rule 11: NEVER append children to a component instance
 
