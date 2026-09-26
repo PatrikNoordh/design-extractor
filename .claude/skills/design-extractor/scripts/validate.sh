@@ -77,8 +77,9 @@ else
 fi
 
 # Rule 5 — system fonts used as font family values (not in comments)
-# Full-line comments are skipped so a mapping note like "// ... mapped to Inter" can't fail the check
-CODE_ONLY=$(grep -vE '^[[:space:]]*(//|/\*|\*)' "$FILE")
+# Comments are skipped (full-line and trailing "  // …") so a mapping note like
+# "// ... mapped to Inter" can't fail the check. "://" in URLs is not treated as a comment.
+CODE_ONLY=$(grep -vE '^[[:space:]]*(//|/\*|\*)' "$FILE" | sed -E 's#(^|[[:space:];,{}()])//.*$#\1#')
 FONT_ERRORS=0
 for font in "SF Pro" "-apple-system" "BlinkMacSystemFont"; do
   if printf '%s\n' "$CODE_ONLY" | grep -qF -- "$font"; then
