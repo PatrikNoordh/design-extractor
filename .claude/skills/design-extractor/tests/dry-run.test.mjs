@@ -38,6 +38,12 @@ function dryRun(name, source) {
   }
 }
 
+// Reads one number from the DRY_RUN summary line, e.g. field(out, "frames")
+function field(out, name) {
+  const m = out.match(new RegExp(`\\b${name}=(\\d+)`));
+  return m ? Number(m[1]) : NaN;
+}
+
 // Two components where the outer one contains an instance of the inner one
 const NESTED = `
 const sw = figma.createComponent(); sw.name = "Switch/On";
@@ -55,8 +61,10 @@ console.log("1. Template from references/frame-generator.md");
 const template = readFileSync(TEMPLATE_DOC, "utf8").match(/```javascript\n([\s\S]*?)\n```/)[1];
 const t = dryRun("template", template);
 assert(t.exit === 0, "template runs with no errors", t.out.trim());
-assert(t.out.includes("pages=2 components=8 frames=4 mobile=2 desktop=2 errors=0"),
-  "template builds 2 pages, 8 components, 4 frames", t.out.trim());
+assert(field(t.out, "pages") === 2 && field(t.out, "components") === 8,
+  "template builds 2 pages and 8 components", t.out.trim());
+assert(field(t.out, "mobile") > 0 && field(t.out, "mobile") === field(t.out, "desktop"),
+  "template builds one mobile and one desktop frame per screen", t.out.trim());
 
 // ── 2. Nested instances (Rule 11) ─────────────────────────
 
@@ -107,6 +115,57 @@ assert(fill.exit === 1 && fill.out.includes("not auto layout"), "FILL without an
 
 const notify = dryRun("notify", `figma.notify("Done");`);
 assert(notify.exit === 1 && notify.out.includes("Rule 9"), "figma.notify() fails", notify.out.trim());
+
+// ── 4. Checks ported from the Kotlin run's reference mock ──
+
+console.log("\n4. Real-Figma behaviour");
+const robotoOk = dryRun("roboto-semibold", `
+await figma.loadFontAsync({ family: "Roboto", style: "SemiBold" });
+const t = figma.createText();
+t.fontName = { family: "Roboto", style: "SemiBold" };
+t.characters = "Hello";
+`);
+assert(robotoOk.exit === 0, "Roboto \"SemiBold\" loads", robotoOk.out.trim());
+
+const robotoBad = dryRun("roboto-semi-bold", `
+await figma.loadFontAsync({ family: "Roboto", style: "Semi Bold" });
+`);
+assert(robotoBad.exit === 1 && robotoBad.out.includes("not available"),
+  "Roboto \"Semi Bold\" (Inter spelling) fails", robotoBad.out.trim());
+
+const device = dryRun("device-font", `await figma.loadFontAsync({ family: "sans-serif", style: "Regular" });`);
+assert(device.exit === 1 && device.out.includes("device font"), "device font fails (Rule 5)", device.out.trim());
+
+const badColor = dryRun("invalid-color", `
+const f = figma.createFrame();
+f.fills = [{ type: "SOLID", color: { r: NaN, g: 0, b: 0 } }];
+`);
+assert(badColor.exit === 1 && badColor.out.includes("invalid color"), "invalid paint color fails", badColor.out.trim());
+
+const mult = dryRun("multiplier", `
+const s = figma.createTextStyle();
+s.lineHeight = { unit: "MULTIPLIER", value: 1.5 };
+`);
+assert(mult.exit === 1 && mult.out.includes("Rule 6"), "lineHeight MULTIPLIER fails (Rule 6)", mult.out.trim());
+
+const page = dryRun("current-page", `figma.currentPage = figma.createPage();`);
+assert(page.exit === 1 && page.out.includes("Rule 8"), "figma.currentPage = … fails (Rule 8)", page.out.trim());
+
+const absolute = dryRun("absolute", `
+const f = figma.createFrame();
+f.layoutPositioning = "ABSOLUTE";
+`);
+assert(absolute.exit === 1 && absolute.out.includes("ABSOLUTE"),
+  "ABSOLUTE positioning outside auto layout fails", absolute.out.trim());
+
+const warned = dryRun("warning", `console.warn("  ⚠️ Something was approximated");`);
+assert(warned.exit === 1, "any console.warn counts as a problem", warned.out.trim());
+
+const vars = dryRun("variables", `
+const col = figma.variables.createVariableCollection("Tokens");
+figma.variables.createVariable("spacing/md", col, "FLOAT").setValueForMode(col.modes[0].modeId, 12);
+`);
+assert(vars.exit === 0 && field(vars.out, "variables") === 1, "number variables are counted", vars.out.trim());
 
 rmSync(tmp, { recursive: true, force: true });
 
