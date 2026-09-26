@@ -20,9 +20,13 @@ Ask Claude Code: "Generate figma-import.js for the project at .claude/skills/des
 ```bash
 bash .claude/skills/design-extractor/scripts/validate.sh figma-import.js
 ```
-Expected: all checks pass, exit 0.
+Expected: all checks pass, exit 0. The dry-run line must read:
+```
+✅ PASS: Dry run: pages=2 components=8 frames=4 mobile=2 desktop=2 errors=0
+```
 
 **Step 3 — Run in Figma:**
+- Use a **fresh, empty Figma file** — running the script twice in the same file duplicates every page and style
 - Open Figma → Plugins → Development → Open Console
 - Paste `figma-import.js` → Enter
 
@@ -56,6 +60,10 @@ Expected: all checks pass, exit 0.
 - [ ] Frames page has 4 frames: Home Mobile (390px), Home Desktop (1440px), Dashboard Mobile (390px), Dashboard Desktop (1440px)
 - [ ] Colors reflect the fixture palette (blue primary #2563EB, white background, etc.)
 - [ ] No font errors in console (system-ui must have been mapped to Inter)
+- [ ] Text wraps inside cards and inputs — nothing runs past an edge, including the 390px mobile frames
+- [ ] Long pages are not cut off at the bottom; Dashboard Desktop's Sidebar and Main reach the bottom of the frame
+- [ ] Card instances on the frames show overridden titles ("Fast", "Revenue"...) and are still linked to `Card/Default`
+- [ ] The menu icon is drawn as three bars, not a ☰ box
 
 ---
 
@@ -149,7 +157,13 @@ The `kotlin-android/` fixture is intentionally unsupported — running the skill
 | Nothing created, no output | Async IIFE present | validate.sh Rule 7 |
 | Script stops after phase 1–3 | runPhase helper missing | validate.sh Structure check |
 | `SyntaxError` on paste | Broken generated code | validate.sh Syntax check (`node --check`) |
-| `Cannot add children to an instance` | appendChild on an instance | Rule 11 — call `detachInstance()` first |
+| `Cannot add children to an instance` | appendChild on an instance | Rule 11 — override named text layers with `instance()`; detach only as a last resort |
+| Empty boxes where icons should be | Icon glyph (☰ ✕) in text | Rule 12 — draw the icon as shapes |
+| Text runs past the edge of a card | Text left on auto-width | Call `wrap(text)` after `appendChild` |
+| Frame content cut off at the bottom | Fixed frame height | Hug, then `resize(width, max(device, content))` — see frame-generator.md |
+| `Font "X" is not available — using "Y"` | Repo font not in Figma | Expected — the fallback chain picked Y; list it under Approximations (Rule 15) |
+| `Too many elapsed hits of react since last report` | Figma's own UI performance warning while styles are created | Harmless — ignore |
+| Every page and style exists twice | Script run twice in the same file | Run it in a fresh, empty file |
 | `TypeError: unit is invalid` | lineHeight MULTIPLIER | validate.sh Rule 6 |
 | Warning: setCurrentPage deprecated | Using sync setter | validate.sh Rule 8 |
 | All 4 phases logged but Figma shows nothing | Too many pages created | validate.sh Rule 1 — check page count |

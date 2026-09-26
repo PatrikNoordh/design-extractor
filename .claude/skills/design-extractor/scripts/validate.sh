@@ -4,6 +4,8 @@
 # Exit 0 = all checks passed. Exit 1 = at least one violation found.
 
 FILE="${1:-figma-import.js}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SYNTAX_OK=0
 ERRORS=0
 
 fail() {
@@ -30,6 +32,7 @@ if command -v node >/dev/null 2>&1; then
   cp "$FILE" "$TMP_DIR/check.mjs"
   if SYNTAX_OUT=$(node --check "$TMP_DIR/check.mjs" 2>&1); then
     pass "Syntax: script parses (node --check)"
+    SYNTAX_OK=1
   else
     fail "Syntax: script does not parse — $(echo "$SYNTAX_OUT" | grep -m1 'Error')"
   fi
@@ -74,10 +77,11 @@ else
 fi
 
 # Rule 5 — system fonts used as font family values (not in comments)
-# Greps for patterns that indicate actual font family usage, not comment references
+# Full-line comments are skipped so a mapping note like "// ... mapped to Inter" can't fail the check
+CODE_ONLY=$(grep -vE '^[[:space:]]*(//|/\*|\*)' "$FILE")
 FONT_ERRORS=0
 for font in "SF Pro" "-apple-system" "BlinkMacSystemFont"; do
-  if grep -qF -- "$font" "$FILE"; then
+  if printf '%s\n' "$CODE_ONLY" | grep -qF -- "$font"; then
     fail "Rule 5: system font '$font' found — map to Inter or Roboto"
     FONT_ERRORS=$((FONT_ERRORS + 1))
   fi
@@ -110,11 +114,33 @@ else
   pass "Rule 2/3: colors come from tokens"
 fi
 
-# Rule 4 — both a 390px mobile and a 1440px desktop frame size must be present
-if grep -qE '\b390\b' "$FILE" && grep -qE '\b1440\b' "$FILE"; then
-  pass "Rule 4: mobile (390) and desktop (1440) frame sizes present"
+# Dry run — execute the script against a mock figma API (scripts/dry-run.mjs).
+# Catches what grep can't: Rule 11, unloaded fonts, bad layoutSizing, runtime errors.
+# Rule 4 is checked on the frames the script actually builds.
+if [ "$SYNTAX_OK" = "1" ]; then
+  DRY_OUT=$(node "$SCRIPT_DIR/dry-run.mjs" "$FILE" 2>&1)
+  DRY_EXIT=$?
+  SUMMARY=$(echo "$DRY_OUT" | grep '^DRY_RUN')
+  if [ $DRY_EXIT -eq 0 ]; then
+    pass "Dry run: ${SUMMARY#DRY_RUN }"
+  else
+    fail "Dry run: ${SUMMARY#DRY_RUN }"
+    echo "$DRY_OUT" | grep -v '^DRY_RUN' | sed 's/^/     /'
+  fi
+  MOBILE=$(echo "$SUMMARY" | sed -n 's/.*mobile=\([0-9]*\).*/\1/p')
+  DESKTOP=$(echo "$SUMMARY" | sed -n 's/.*desktop=\([0-9]*\).*/\1/p')
+  if [ "${MOBILE:-0}" -gt 0 ] && [ "$MOBILE" = "$DESKTOP" ]; then
+    pass "Rule 4: $MOBILE mobile (390) + $DESKTOP desktop (1440) frames built"
+  else
+    fail "Rule 4: built ${MOBILE:-0} mobile (390) and ${DESKTOP:-0} desktop (1440) frames — need one of each per screen"
+  fi
 else
-  fail "Rule 4: missing 390 (mobile) and/or 1440 (desktop) frame size"
+  # No node, or the script doesn't parse — fall back to a text search (weak: any 390/1440 passes)
+  if grep -qE '\b390\b' "$FILE" && grep -qE '\b1440\b' "$FILE"; then
+    pass "Rule 4 (text search only): 390 and 1440 appear in the script"
+  else
+    fail "Rule 4: missing 390 (mobile) and/or 1440 (desktop) frame size"
+  fi
 fi
 
 # Structure — runPhase helper must be defined, not just called

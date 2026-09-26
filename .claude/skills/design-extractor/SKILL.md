@@ -229,7 +229,7 @@ See full templates in:
 
 Always deliver:
 1. **`figma-import.js`** — the combined script, ready to run
-2. **`design-system-summary.md`** — what was found and any gaps
+2. **`design-system-summary.md`** — what was found, any gaps, and an "Approximations" list (Rule 15)
 3. **Three-line instructions** on how to run it in Figma
 
 ---
@@ -242,6 +242,8 @@ After generating `figma-import.js`, run the validator:
 bash .claude/skills/design-extractor/scripts/validate.sh figma-import.js
 ```
 
+Besides pattern checks, the validator parses the script (`node --check`) and runs it against a mock Figma API (`scripts/dry-run.mjs`) that counts pages, components and frames and fails on runtime errors, Rule 11 and Rule 12. Compare its counts with what you extracted.
+
 If any checks fail: fix the script, re-run the validator. Do not deliver until exit code is 0.
 
 Use the checklist below as a fix guide when the validator reports a failure:
@@ -251,14 +253,18 @@ Use the checklist below as a fix guide when the validator reports a failure:
 - [ ] **Rule 1 – Page count**: Does the script create exactly 2 pages (`🧩 Components` and `📐 Frames`)? Search output for `figma.createPage()`. Count must be exactly 2.
 - [ ] **Rule 2 – No placeholders**: Does every `fills` value come from `tokens.colors.*`? Search for hardcoded hex strings not assigned to a token first.
 - [ ] **Rule 3 – Token connections**: Does every frame section reference `tokens.colors.*` rather than a literal hex?
-- [ ] **Rule 4 – Mobile + desktop frames**: For each entry in `pages[]`, is there both a 390px mobile and a 1440px desktop frame?
+- [ ] **Rule 4 – Mobile + desktop frames**: For each entry in `pages[]`, is there both a 390px mobile and a 1440px desktop frame? (validate.sh counts the frames the dry run builds.)
 - [ ] **Rule 5 – Font mapping**: Does the script contain any of: `"SF Pro"`, `"-apple-system"`, `"BlinkMacSystemFont"`, `"system-ui"`, `"system"`? If yes, replace with `"Inter"`.
 - [ ] **Rule 6 – lineHeight unit**: Search for `unit: "MULTIPLIER"`. Must return zero matches. All lineHeight values must use `"PIXELS"`, `"PERCENT"`, or `"AUTO"`.
 - [ ] **Rule 7 – Top-level await**: Search for `(async () => {` or `(async() => {`. Must return zero matches.
 - [ ] **Rule 8 – setCurrentPageAsync**: Search for `figma.currentPage =` (assignment, not `.name =`). Must return zero matches.
 - [ ] **Rule 9 – No figma.notify / figma.closePlugin**: Search for `figma.notify(` and `figma.closePlugin(`. Must both return zero matches.
 - [ ] **Rule 10 – String quoting**: Any string value sourced from extracted repo data (page titles, component names, button text) uses single-quote outer delimiter.
-- [ ] **Rule 11 – No children on instances**: No `appendChild` on a node from `createInstance()` unless `detachInstance()` was called first. (Not checked by validate.sh.)
+- [ ] **Rule 11 – No children on instances**: Instances are changed with named-layer overrides; no `appendChild` on an instance. (The dry run catches this on the code paths it runs.)
+- [ ] **Rule 12 – Icons as shapes**: No icon glyphs (☰ ✕ ➜ …) in any `characters` value.
+- [ ] **Rule 13 – Sample data only**: No real user or API data in frames; personal data only as obvious placeholders.
+- [ ] **Rule 14 – CSS conversions**: rem, clamp() and media queries resolved per frame width.
+- [ ] **Rule 15 – Approximations listed**: Every approximation is in `design-system-summary.md`.
 
 ### Structure checks
 
@@ -368,9 +374,9 @@ Figma cannot load OS-level system fonts. Any system font reference found in the 
 | system-ui | `"Inter"` |
 | Android: sans-serif / Roboto | `"Roboto"` |
 
-Add a comment in the generated script noting the mapping so users know why the font differs from their app:
+Add a comment on its own line in the generated script noting the mapping so users know why the font differs from their app. Don't name the system font in it — validate.sh flags system font names in code, and keeping them out of comments too avoids false alarms:
 ```javascript
-// Note: SF Pro (iOS system font) mapped to Inter — Figma cannot load device fonts
+// Note: iOS system font mapped to Inter — Figma cannot load device fonts
 ```
 
 ### Rule 6: lineHeight must use PIXELS, PERCENT or AUTO — never MULTIPLIER
@@ -468,19 +474,41 @@ Apply this whenever the string value comes from extracted repo data — componen
 
 ### Rule 11: NEVER append children to a component instance
 
-Figma rejects `appendChild` on an `InstanceNode` (or anything inside one). To put content inside a component used in a frame, detach the instance first — or build a plain frame instead. `validate.sh` cannot detect this, so check it by hand.
+Figma rejects `appendChild` on an `InstanceNode` (or anything inside one). Overriding is allowed: text, font size, fills and padding can all be changed on an instance. So, in order of preference:
+
+1. **Override** — name every text layer in the component (`Label`, `Title`...) and change it on the instance with the template's `instance(name, { Layer: "text" })` helper.
+2. **Plain frame** — if the screen needs a different structure (e.g. a header with a Back button), style a plain frame with the same builder function the component uses.
+3. **Detach** — `instance.detachInstance()` only as a last resort; the result is no longer linked to the component.
+
+The dry run in `validate.sh` fails on this, but it only sees the code paths the script actually runs.
 
 ```javascript
 // WRONG ❌ — throws: cannot add children to an instance
-const card = cardComponent.createInstance();
+const card = componentNodes["Card/Default"].createInstance();
 card.appendChild(title);
 
-// CORRECT ✅ — detach first, then it is a normal frame
-const card = cardComponent.createInstance().detachInstance();
-card.appendChild(title);
+// CORRECT ✅ — override the named text layer
+const card = instance("Card/Default", { Title: "Revenue", Body: "$12,400 this month" });
 ```
 
----
+### Rule 12: Draw icons as shapes — never as text glyphs
+
+Glyphs like ☰, ✕ or ➜ are not in Inter and render as empty boxes. Draw icons from rectangles, ellipses or vectors (see `iconMenu()` in the template). If the repo uses an icon font or SVG set, draw the closest simple shape and list it as an approximation (Rule 15).
+
+### Rule 13: Sample data only
+
+Never copy runtime or API data (fixtures, seed files, database dumps, logged-in user details) into frames. Use made-up sample content that fits the layout. Personal data — names, phone numbers, emails, IDs — appears only as obvious placeholders ("Jane Doe", "+46 70 000 00 00") and only on screens where the app actually shows it.
+
+### Rule 14: Convert CSS values to pixels per frame
+
+- `rem` / `em` → multiply by 16 (or the root font size if the repo changes it).
+- `clamp(min, Xvw, max)` → evaluate at each frame's width: `min(max(min, X × width / 100), max)` — so 390 for mobile, 1440 for desktop.
+- Media queries decide which rules apply to each frame: mobile gets the base styles plus any `max-width` rules that match 390; desktop gets the `min-width` rules that match 1440.
+- `%` widths → `FILL` in auto layout; `vh` heights → a fraction of the frame's device height (844 / 960).
+
+### Rule 15: List every approximation in the summary
+
+Anything drawn differently from the app goes in `design-system-summary.md` under "Approximations": carousels drawn static, only the success state drawn, menus shown closed, fonts replaced by a fallback, icons simplified, grid layouts drawn as rows.
 
 ### Correct main block template
 
@@ -531,10 +559,10 @@ This section will be replaced with your project's rules.
 
 ### What will be detected and added here
 
-- **Framework** (Next.js, Vue, Svelte, React, SwiftUI, etc.)
-- **Styling approach** (Tailwind, CSS Modules, Styled Components, CSS vars, etc.)
-- **Component folder structure** (where your components live)
-- **Code generation rules** (naming conventions, file format, output structure)
+- **Framework** (Next.js, Vue, Svelte, React, SwiftUI, Kotlin/Android, etc.)
+- **Styling approach** (Tailwind, CSS Modules, Styled Components, CSS vars, XML resources, etc.)
+- **Where to read from** (token files, component folders and variants, screen files)
+- **Value conversions** (rem, clamp(), dp/sp, font mapping) and known gaps
 
 ---
 
@@ -543,11 +571,11 @@ This section will be replaced with your project's rules.
 When extracting from a SwiftUI project:
 
 - **Colors**: Read `Color+Extensions.swift` or `Assets.xcassets` color set JSON files. Dark-mode variants are usually the primary appearance.
-- **Flat token object**: Use a flat `const colors = { key: "#hex" }` rather than a nested `tokens.colors` object — the script helper functions (`sc`, `hGrad`, `vGrad`) reference colors directly.
+- **Token object**: Use the same `tokens.colors` object as every other framework (see `references/frame-generator.md`) — `solidColor`, `hGrad` and `vGrad` all take hex values from it.
 - **Typography**: SwiftUI `.font(.system(size:weight:))` maps to `Inter` in Figma. Extract all unique sizes and weights into a semantic token table.
 - **Spacing constants**: Look for `enum Spacing` or `struct Spacing` with static `let` values.
 - **Corner radius**: Look for `enum CornerRadius` or extension on `CGFloat`.
 - **Views → Frames**: Each `*View.swift` file is one frame. Map `ZStack/VStack/HStack` to Figma frame layout direction.
 - **Custom shapes** (`Shape` protocol): Cannot be reproduced exactly — approximate with nearest available Figma shape and note the limitation in `design-system-summary.md`.
 - **Gradient helpers**: Always generate `hGrad(c1, c2)` and `vGrad(c1, c2)` helpers in the script when the app uses gradients.
-- **`txt()` helper**: Always generate an async `txt(chars, size, weight, hex, alpha)` helper to avoid repeating font/fill setup on every text node.
+- **`txt()` helper**: Use the template's `txt(chars, typoKey, hex)` helper for every text node — it takes the font, size and line height from `tokens.typography[typoKey]`.
