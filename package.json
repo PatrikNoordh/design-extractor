@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "node tests/converter.test.js && node tests/run.js"
+    "test": "node tests/converter.test.js && node tests/run.js && node .claude/skills/design-extractor/tests/dry-run.test.mjs"
   }
 }

@@ -68,7 +68,9 @@ function makeNode(type) {
     findOne(fn) { return walk(this, fn, [])[0] || null; },
     findAll(fn = () => true) { return walk(this, fn, []); },
     clone() {
-      const c = makeNode(this.type);
+      // A nested instance is built as a FRAME and becomes an INSTANCE after its children
+      // are copied — otherwise the copy's own appendChild trips the Rule 11 check
+      const c = makeNode(this.type === "INSTANCE" ? "FRAME" : this.type);
       for (const k of ["name", "width", "height", "fills", "strokes", "effects", "layoutMode", "primaryAxisSizingMode",
                        "counterAxisSizingMode", "textAutoResize", "fontName", "fontSize", "characters",
                        "layoutSizingHorizontal", "layoutSizingVertical"]) {
@@ -80,6 +82,7 @@ function makeNode(type) {
         cc.layoutSizingHorizontal = ch.layoutSizingHorizontal;
         cc.layoutSizingVertical = ch.layoutSizingVertical;
       }
+      if (this.type === "INSTANCE") { c.type = "INSTANCE"; c.mainComponent = this.mainComponent; }
       return c;
     },
     createInstance() {
