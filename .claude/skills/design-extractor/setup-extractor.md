@@ -1,27 +1,47 @@
 # Setup Design Extractor
 
-Your goal is to calibrate the 'design-extractor' skill for the user's specific local repository.
-The skill's output is always a Figma console script (`figma-import.js`) — calibration describes
-**where to read the design from** and **how to convert its values**, never how to write app code.
+Your goal is to calibrate the `design-extractor` skill for the user's local repository, so later
+runs know **where the tokens, components and screens live** and **how to map them into the
+Figma import script**. The skill never generates app/frontend code — its output is always
+`figma-import.js` + `design-system-summary.md`.
 
-## Steps to execute:
+## Steps to execute
 
-1. **Audit the Project:** Scan `package.json`, configuration files (like `tailwind.config.js`, `tsconfig.json`, `build.gradle`), and the source directories to identify:
-   - The framework (e.g., React, Vue, Svelte, SwiftUI, Kotlin/Android).
-   - The styling methodology (e.g., Tailwind CSS, CSS Modules, Styled Components, XML resources).
-   - Where tokens live (config file, `:root` variables, theme object, `colors.xml`...).
-   - Where components live (e.g., `src/components/ui`) and how their variants are expressed (props, class names, style files).
-   - Where screens live (router file, `app/**/page.*`, `*View.swift`, `*Activity.kt`...).
+1. **Audit the project.** Detect every UI technology in use (a project can have more than one):
 
-2. **Update the Skill:** Open `.claude/skills/design-extractor/SKILL.md`.
+   | Look for | Means |
+   |---|---|
+   | `package.json` deps: `next`, `react`, `vue`, `svelte`; `tailwind.config.*`, `*.module.css`, `styled-components` | Web framework + styling approach |
+   | `*.xcodeproj`, `Package.swift`, `*.swift` with `import SwiftUI` | SwiftUI |
+   | `build.gradle(.kts)` + `res/layout/*.xml` inflated by Activities/Fragments | Android XML Views |
+   | `@Composable`, `setContent {`, `androidx.compose` in Gradle | Android Jetpack Compose |
+   | `*.ui` files, `QWidget` | Qt |
 
-3. **Replace the placeholder:** Find the existing `## Local Project Formatting` section (it says "Not yet calibrated for this project"). Replace everything from that heading up to the next `---` separator with your calibrated rules. Do not add a second section. Include:
-   - **Read tokens from:** exact file paths, in priority order.
-   - **Read components from:** folder paths, and how to find each variant.
-   - **Read screens from:** file paths, and the screen name to use for each.
-   - **Value conversions:** units and patterns specific to this repo (e.g. rem × 16 → px, `clamp()`, `dp`/`sp`, theme lookups), and any system fonts to map (Rule 5).
-   - **Known gaps:** anything the skill will have to approximate for this repo.
+   Then record:
+   - **Token sources** — the files tokens come from, in priority order (e.g. Compose
+     `ui/theme/Color.kt` before `res/values/colors.xml`; `tailwind.config.js` before CSS vars)
+   - **Component locations** — folders holding reusable components (`src/components/ui`,
+     `…/components/`, `res/layout/`)
+   - **Screen sources** — how screens are defined (App Router folders, React Router file,
+     `NavHost` graph file, `*View.swift` destinations) and how many there are
+   - **Coverage** — for mixed projects, how much UI each technology covers
+   - **Font mapping** — which Figma family the app's fonts map to (Rule 5)
+   - **Dark mode** — present (where) or absent
+   - **Frame sizes** — does the app have a desktop/tablet layout? (Rule 4)
 
-4. **Preserve Core Rules:** DO NOT remove, alter, or break the CRITICAL RULES (1–11) or the "Figma Script Generation Rules" (Top-Level Await, Async Setters, etc.) that ensure the Figma script runs correctly in the console.
+2. **Open** `.claude/skills/design-extractor/SKILL.md`.
 
-5. **Confirm:** Print a message stating the framework, styling and token source that were detected, and confirm that the design-extractor is now calibrated for this repo.
+3. **Replace the existing `## Local Project Formatting` section in place** (it sits between the
+   "Correct main block" section and the "SwiftUI Project Notes" section). Do not append a
+   second section at the bottom. Write the findings from step 1 as short, explicit rules, for
+   example:
+   - "Token source of truth: `app/ui/theme/*.kt`; `res/values/colors.xml` only mirrors 2 colors"
+   - "Screens: every `composable(route)` in `navigation/AppNavGraph.kt` + `AlarmActivity`"
+   - "Fonts: `FontFamily.Default` → `'Roboto'`"
+   - "Phone-only: omit desktop frames (Rule 4 comment)"
+
+4. **Preserve core rules.** Do not remove, alter or break anything outside that section —
+   especially the CRITICAL RULES (1–15) and the Figma Script Generation Rules.
+
+5. **Confirm.** Print a short message stating the technologies, token sources and screen count
+   detected, and that design-extractor is now calibrated for this repo.

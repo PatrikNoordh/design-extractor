@@ -77,8 +77,9 @@ else
 fi
 
 # Rule 5 — system fonts used as font family values (not in comments)
-# Full-line comments are skipped so a mapping note like "// ... mapped to Inter" can't fail the check
-CODE_ONLY=$(grep -vE '^[[:space:]]*(//|/\*|\*)' "$FILE")
+# Comments are skipped (full-line and trailing "  // …") so a mapping note like
+# "// ... mapped to Inter" can't fail the check. "://" in URLs is not treated as a comment.
+CODE_ONLY=$(grep -vE '^[[:space:]]*(//|/\*|\*)' "$FILE" | sed -E 's#(^|[[:space:];,{}()])//.*$#\1#')
 FONT_ERRORS=0
 for font in "SF Pro" "-apple-system" "BlinkMacSystemFont"; do
   if printf '%s\n' "$CODE_ONLY" | grep -qF -- "$font"; then
@@ -106,12 +107,21 @@ else
   pass "Rule 1: page count is $PAGE_COUNT (≤ 2)"
 fi
 
-# Rule 2/3 — hex literals assigned directly instead of via tokens.colors
-# (heuristic: catches solidColor("#...") and bg/stroke/textColor/border: "#..." in data)
-if grep -qE 'solidColor\(\s*["'"'"']#|\b(bg|textColor|stroke|border)\s*:\s*["'"'"']#' "$FILE"; then
+# Rule 2/3 — colors come from tokens.
+# With node: scripts/check-tokens.mjs checks every C.x / S.x / R.x / Z.x, typography and shadow
+# key exists in tokens, and that no hex literal appears outside the tokens block.
+# Without node: a text search for the most common hardcoded-hex patterns.
+if [ "$SYNTAX_OK" = "1" ]; then
+  if TOKENS_OUT=$(node "$SCRIPT_DIR/check-tokens.mjs" "$FILE" 2>&1); then
+    pass "Rule 2/3: token references valid, no hex outside tokens"
+  else
+    fail "Rule 2/3: token problems"
+    echo "$TOKENS_OUT" | grep '^❌' | sed 's/^/     /'
+  fi
+elif grep -qE 'solidColor\(\s*["'"'"']#|\b(bg|textColor|stroke|border|color|fill)\s*:\s*["'"'"']#' "$FILE"; then
   fail "Rule 2/3: hardcoded hex color outside tokens — reference tokens.colors instead"
 else
-  pass "Rule 2/3: colors come from tokens"
+  pass "Rule 2/3 (text search only): no common hardcoded-hex patterns"
 fi
 
 # Dry run — execute the script against a mock figma API (scripts/dry-run.mjs).
@@ -129,10 +139,17 @@ if [ "$SYNTAX_OK" = "1" ]; then
   fi
   MOBILE=$(echo "$SUMMARY" | sed -n 's/.*mobile=\([0-9]*\).*/\1/p')
   DESKTOP=$(echo "$SUMMARY" | sed -n 's/.*desktop=\([0-9]*\).*/\1/p')
-  if [ "${MOBILE:-0}" -gt 0 ] && [ "$MOBILE" = "$DESKTOP" ]; then
+  # Desktop frames are optional for phone-only apps, but the script must say why they're missing
+  if [ "${MOBILE:-0}" -eq 0 ]; then
+    fail "Rule 4: no mobile (390) frames built"
+  elif [ "$MOBILE" = "$DESKTOP" ]; then
     pass "Rule 4: $MOBILE mobile (390) + $DESKTOP desktop (1440) frames built"
+  elif [ "${DESKTOP:-0}" -eq 0 ] && grep -qiE 'Rule 4: desktop frames omitted — [^<]' "$FILE"; then
+    pass "Rule 4: $MOBILE mobile (390) frames; desktop omitted (reason given in the script)"
+  elif [ "${DESKTOP:-0}" -eq 0 ]; then
+    fail "Rule 4: no desktop frames and no '// Rule 4: desktop frames omitted — <reason>' comment"
   else
-    fail "Rule 4: built ${MOBILE:-0} mobile (390) and ${DESKTOP:-0} desktop (1440) frames — need one of each per screen"
+    fail "Rule 4: $MOBILE mobile (390) but $DESKTOP desktop (1440) frames — every screen needs both, or none on desktop"
   fi
 else
   # No node, or the script doesn't parse — fall back to a text search (weak: any 390/1440 passes)

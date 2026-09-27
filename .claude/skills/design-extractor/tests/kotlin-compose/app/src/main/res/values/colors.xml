@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors AppColors.Primary for the window / notification accent -->
+    <color name="brand_primary">#FF2563EB</color>
+    <color name="window_background">#FFFFFFFF</color>
+    <!-- Android Studio template leftovers — not referenced anywhere -->
+    <color name="purple_500">#FF6200EE</color>
+    <color name="teal_200">#FF03DAC5</color>
+</resources>

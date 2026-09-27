@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No spacing_/radius_/font_size_ prefixes on purpose -->
+    <dimen name="notification_gap">8dp</dimen>
+    <dimen name="notification_touch_target">48dp</dimen>
+    <dimen name="notification_star_size">22sp</dimen>
+    <dimen name="chip_corner">16dp</dimen>
+</resources>
