@@ -274,10 +274,16 @@ design-extractor/
 ├── references/               # detailed guides for patterns, templates, generation logic
 ├── scripts/
 │   ├── validate.sh           # validates a generated figma-import.js before you paste
-│   └── dry-run.mjs           # runs the script against a mock Figma API (called by validate.sh)
+│   ├── dry-run.mjs           # runs the script against a mock Figma API (called by validate.sh)
+│   └── check-tokens.mjs      # checks every token reference exists (called by validate.sh)
 └── tests/
     ├── fixture/              # minimal HTML/CSS project for end-to-end testing
+    ├── nextjs-tailwind/, react-css-modules/, vue/, swiftui/   # one fixture per web/iOS framework
+    ├── kotlin-android/       # Android XML Views fixture
+    ├── kotlin-compose/       # Android Jetpack Compose fixture
+    ├── dry-run.test.mjs      # regression tests for the mock Figma dry run (npm test)
     └── TESTING.md            # full testing workflow and debugging table
+
 
 pen-to-figma/
 ├── SKILL.md                  # skill definition — conversion rules and Figma API constraints
